@@ -1,0 +1,3 @@
+scalar BigDecimal
+scalar BigInt
+scalar Bytes

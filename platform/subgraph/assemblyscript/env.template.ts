@@ -1,0 +1,1 @@
+export const GRAPH_HELPER_ADDRESS = '${GRAPH_HELPER_ADDRESS}';

@@ -1,0 +1,251 @@
+# References:
+# - https://thegraph.com/docs/developer/assemblyscript-api
+# - https://thegraph.academy/developers/defining-a-subgraph/
+# - https://dev.to/dabit3/building-graphql-apis-on-ethereum-4poa
+# - https://github.com/ensdomains/ens-subgraph
+# - https://github.com/graphprotocol/dharma-subgraph
+
+type Category @entity {
+  id: ID!
+
+  # children
+  subcategories: [Subcategory!]! @derivedFrom(field: "category")
+
+  # properties
+  slug: String!
+}
+
+type Subcategory @entity {
+  id: ID!
+
+  # parents
+  category: Category!
+
+  # children
+  virtualFloors: [VirtualFloor!]! @derivedFrom(field: "subcategory")
+
+  # properties
+  slug: String!
+}
+
+enum VirtualFloorState {
+  Active_ResultNone,                   # formerly RUNNING_OR_CLOSED__RESULT_NONE
+  Active_ResultSet,                    # formerly RUNNING_OR_CLOSED__RESULT_SET
+  Active_ResultChallenged,             # formerly RUNNING_OR_CLOSED__RESULT_CHALLENGED
+  Claimable_Refunds_ResolvableNever,   # formerly CANCELLED_BECAUSE_UNRESOLVABLE
+  Claimable_Refunds_ResolvedNoWinners, # formerly CANCELLED_BECAUSE_RESOLVED_NO_WINNERS
+  Claimable_Refunds_Flagged,           # formerly CANCELLED_BECAUSE_FLAGGED
+  Claimable_Payouts                    # formerly RESOLVED_WINNERS
+}
+
+type VirtualFloor @entity {
+  id: ID!
+
+  intId: BigInt!
+
+  # parents
+  owner: User!
+  subcategory: Subcategory!
+
+  """Only set if the result set by the creator has been challenged"""
+  challenger: User
+
+  # children
+  outcomes: [Outcome!]! @derivedFrom(field: "virtualFloor")
+  opponents: [Opponent!]! @derivedFrom(field: "virtualFloor")
+  resultSources: [ResultSource!]! @derivedFrom(field: "virtualFloor")
+
+  # properties (event)
+  paymentToken: PaymentToken!
+  betaOpen: BigDecimal!
+  creationFeeRate: BigDecimal!
+  platformFeeRate: BigDecimal!
+  tCreated: BigInt!
+  tOpen: BigInt!
+  tClose: BigInt!
+  tResolve: BigInt!
+  bonusAmount: BigDecimal!
+  minCommitmentAmount: BigDecimal!
+  maxCommitmentAmount: BigDecimal!
+
+  # Despite being redundant, as it is always equal to tResolve,
+  # this could be different in a different Oracle implementation.
+  # So we make a distinction between `tResolve` the VF creation parameter,
+  # and `tResultSetMin` the value pertaining to the current particular Oracle implementation
+  tResultSetMin: BigInt!
+
+  # ToDo: Emit per-VF as VirtualFloorCreated event field
+  # Optional because it can only be set once SET_WINDOW starts ticking
+  tResultSetMax: BigInt!
+
+  # ToDo: Emit per-VF as VirtualFloorCreated event field
+  # Optional because it can only be set once CHALLENGE_WINDOW starts ticking
+  tResultChallengeMax: BigInt
+
+  state: VirtualFloorState!
+  winningOutcome: Outcome   # Optional: Only set if VF is resolved
+  winnerProfits: BigDecimal # Optional: Only set if VF is resolved
+  flaggingReason: String    # Optional: Only set if VF is cancelled because it was flagged
+
+  # properties (ipfs)
+  title: String!
+  description: String!
+  isListed: Boolean!
+  discordChannelId: String!
+
+  # aggregates
+  totalSupply: BigDecimal!
+}
+
+type Opponent @entity {
+  id: ID!
+
+  # parents
+  virtualFloor: VirtualFloor!
+
+  # properties
+  title: String!
+  image: String!
+}
+
+type ResultSource @entity {
+  id: ID!
+
+  # parents
+  virtualFloor: VirtualFloor!
+
+  # properties
+  title: String!
+  url: String!
+}
+
+type Outcome @entity {
+  id: ID!
+
+  # parents
+  virtualFloor: VirtualFloor!
+
+  # children
+  outcomeTimeslots: [OutcomeTimeslot!]! @derivedFrom(field: "outcome")
+  userOutcomeTimeslots: [UserOutcomeTimeslot!]! @derivedFrom(field: "outcome")
+  userOutcomes: [UserOutcome!]! @derivedFrom(field: "outcome")
+
+  # properties
+  title: String!
+  index: Int!
+
+  # aggregates
+  totalSupply: BigDecimal!
+  totalWeightedSupply: BigDecimal!
+}
+
+type User @entity {
+  id: ID!
+
+  # children
+  userOutcomeTimeslots: [UserOutcomeTimeslot!]! @derivedFrom(field: "user")
+  userOutcomes: [UserOutcome!]! @derivedFrom(field: "user")
+  outcomeTimeslotTransfersTo: [OutcomeTimeslotTransfer!]! @derivedFrom(field: "to")
+  outcomeTimeslotTransfersFrom: [OutcomeTimeslotTransfer!]! @derivedFrom(field: "from")
+  ownedVirtualFloors: [VirtualFloor!]! @derivedFrom(field: "owner")
+  challengedVirtualFloors: [VirtualFloor!]! @derivedFrom(field: "challenger")
+
+  # properties
+  maxConcurrentVirtualFloors: BigInt!
+  concurrentVirtualFloors: BigInt!
+}
+
+type UserOutcome @entity {
+  id: ID!
+
+  # parents
+  user: User!
+  outcome: Outcome!
+
+  # children
+  userOutcomeTimeslots: [UserOutcomeTimeslot!]! @derivedFrom(field: "userOutcome")
+
+  # properties
+  totalBalance: BigDecimal!
+  totalWeightedBalance: BigDecimal!
+}
+
+type OutcomeTimeslot @entity {
+  id: ID!
+
+  tokenId: BigInt!
+
+  # parents
+  outcome: Outcome!
+  timeslot: BigInt!
+
+  # children
+  userOutcomeTimeslots: [UserOutcomeTimeslot!]! @derivedFrom(field: "outcomeTimeslot")
+  outcomeTimeslotTransfers: [OutcomeTimeslotTransfer!]! @derivedFrom(field: "outcomeTimeslot")
+
+  # properties
+  totalSupply: BigDecimal!
+  beta: BigDecimal!
+}
+
+type UserOutcomeTimeslot @entity {
+  id: ID!
+
+  # parents
+  user: User!
+  outcome: Outcome!
+  
+  """Deprecated: Use `UserOutcomeTimeslot.outcomeTimeslot.timeslot` instead."""
+  timeslot: BigInt!
+  
+  outcomeTimeslot: OutcomeTimeslot!
+  userOutcome: UserOutcome!
+
+  # # children
+  # outcomeTimeslotTransfersFrom: [OutcomeTimeslotTransfer!]! @derivedFrom(field: "fromUserOutcomeTimeslot")
+  # outcomeTimeslotTransfersTo: [OutcomeTimeslotTransfer!]! @derivedFrom(field: "toUserOutcomeTimeslot")
+
+  # properties
+  balance: BigDecimal!
+}
+
+type OutcomeTimeslotTransfer @entity {
+  id: ID!
+
+  # parents
+  outcomeTimeslot: OutcomeTimeslot!
+  from: User!
+  to: User!
+  # fromUserOutcomeTimeslot: UserOutcomeTimeslot!
+  # toUserOutcomeTimeslot: UserOutcomeTimeslot!
+
+  # properties
+  timestamp: BigInt!
+
+  # """
+  # Position of the associated event log in the block.
+  
+  # All transfers could be sorted chronologically by ordering by `[timestamp, logIndex]`
+  # """
+  # logIndex: Int!
+
+  amount: BigDecimal!
+}
+
+type PaymentToken @entity {
+  id: ID!
+
+  # properties
+  address: Bytes!
+  name: String!
+  symbol: String!
+  decimals: Int!
+}
+
+type VirtualFloorsAggregate @entity {
+  id: ID!
+
+  """The total number of VFs ever created."""
+  totalVirtualFloorsCreated: Int!
+
+}

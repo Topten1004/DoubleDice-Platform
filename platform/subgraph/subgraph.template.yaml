@@ -1,0 +1,59 @@
+specVersion: 0.0.2
+description: DoubleDice platform
+schema:
+  file: ../schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: DoubleDice
+    network: "${DOUBLEDICE_CONTRACT_NETWORK}"
+    source:
+      address: "${DOUBLEDICE_CONTRACT_ADDRESS}"
+      abi: DoubleDice
+      startBlock: ${DOUBLEDICE_CONTRACT_START_BLOCK}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Category
+        - Opponent
+        - Outcome
+        - OutcomeTimeslot
+        - OutcomeTimeslotTransfer
+        - PaymentToken
+        - ResultSource
+        - Subcategory
+        - User
+        - UserOutcome
+        - UserOutcomeTimeslot
+        - VirtualFloor
+        - VirtualFloorsAggregate
+      abis:
+        - name: DoubleDice
+          file: ./DoubleDice.no-custom-errors.json
+        - name: GraphHelper
+          file: ../../generated/abi/GraphHelper.json
+        - name: IERC20Metadata
+          file: ../../generated/abi/IERC20Metadata.json
+      eventHandlers:
+        - event: PaymentTokenWhitelistUpdate(indexed address,bool)
+          handler: handlePaymentTokenWhitelistUpdate
+        - event: VirtualFloorCreation(indexed uint256,indexed address,uint256,uint256,uint256,uint32,uint32,uint32,uint8,address,uint256,uint256,uint256,(bytes32,bytes))
+          handler: handleVirtualFloorCreation
+        - event: UserCommitment(indexed uint256,indexed address,uint8,uint256,uint256,uint256,uint256)
+          handler: handleUserCommitment
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+        - event: VirtualFloorCancellationUnresolvable(indexed uint256)
+          handler: handleVirtualFloorCancellationUnresolvable
+        - event: VirtualFloorCancellationFlagged(indexed uint256,string)
+          handler: handleVirtualFloorCancellationFlagged
+        - event: VirtualFloorResolution(indexed uint256,uint8,uint8,uint256,uint256,uint256)
+          handler: handleVirtualFloorResolution
+        - event: CreationQuotaAdjustments((address,int256)[])
+          handler: handleCreationQuotaAdjustments
+        - event: ResultUpdate(indexed uint256,address,uint8,uint8)
+          handler: handleResultUpdate
+      file: ../assemblyscript/mapping.ts

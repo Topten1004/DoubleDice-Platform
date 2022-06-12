@@ -1,0 +1,13 @@
+overwrite: true
+schema: "./graphql/generated/schema.graphql"
+generates:
+  ./lib/generated/graphql.ts:
+    plugins:
+      - typescript
+    config:
+      namingConvention:
+        # see https://www.graphql-code-generator.com/docs/config-reference/naming-convention
+        enumValues: keep
+      scalars:
+        BigDecimal: string
+        BigInt: string
